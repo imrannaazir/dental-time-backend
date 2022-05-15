@@ -19,6 +19,7 @@ async function run() {
     try {
         await client.connect();
         const serviceCollection = client.db("dental").collection("services")
+        const bookingCollection = client.db("dental").collection("booking")
 
 
         //get all services api
@@ -28,6 +29,28 @@ async function run() {
             const services = await cursor.toArray();
             res.send(services);
         });
+        //get my booking
+        app.get('/booking', async (req, res) => {
+            const patientEmail = req.query.email;
+            const query = { patientEmail: patientEmail }
+            const cursor = bookingCollection.find(query)
+            const myBooking = await cursor.toArray();
+            res.send(myBooking)
+        })
+
+        //post a booking api
+        app.post('/booking', async (req, res) => {
+            const newBooking = req.body;
+            const query = { treatmentName: newBooking.treatmentName, date: newBooking.date, patientEmail: newBooking.patientEmail };
+            const exist = await bookingCollection.findOne(query);
+            if (exist) {
+                return res.send({ success: false, newBooking: exist })
+            }
+            else {
+                const result = await bookingCollection.insertOne(newBooking);
+                res.send({ success: true, newBooking: result });
+            }
+        })
 
     }
     finally {
