@@ -38,6 +38,22 @@ async function run() {
             res.send(myBooking)
         })
 
+
+        app.get('/available', async (req, res) => {
+            const date = req.query.date;
+            const query = { date: date };
+            const services = await serviceCollection.find().toArray();
+            const myBooking = await bookingCollection.find(query).toArray()
+            services.forEach(service => {
+                const serviceBookings = myBooking.filter(b => b.treatmentName === service.name);
+                const booked = serviceBookings.map(s => s.slot)
+                service.booked = booked;
+                const available = service.slots.filter(s => !booked.includes(s))
+                service.slots = available
+            })
+            res.send(services)
+        })
+
         //post a booking api
         app.post('/booking', async (req, res) => {
             const newBooking = req.body;
