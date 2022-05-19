@@ -15,11 +15,20 @@ const uri = `mongodb+srv://${process.env.USER_NAME}:${process.env.USER_PASSWORD}
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
 
 
+//jwt token function
+/* const verifyJWT = (req, res, next) => {
+
+
+
+} */
+
+
 async function run() {
     try {
         await client.connect();
         const serviceCollection = client.db("dental").collection("services")
         const bookingCollection = client.db("dental").collection("booking")
+        const userCollection = client.db("dental").collection("users")
 
 
         //get all services api
@@ -66,6 +75,20 @@ async function run() {
                 const result = await bookingCollection.insertOne(newBooking);
                 res.send({ success: true, newBooking: result });
             }
+        });
+
+        // put user api
+        app.put('/users/:email', async (req, res) => {
+            const email = req.params.email;
+            const user = req.body;
+            const query = { email: email }
+            const updatedUser = {
+                $set: user
+            }
+            const option = { upsert: true }
+            const result = await userCollection.updateOne(query, updatedUser, option)
+            const token = jwt.sign({ email: email }, process.env.SECRET_TOKEN, { expiresIn: '1h' })
+            res.send({ result, token });
         })
 
     }
