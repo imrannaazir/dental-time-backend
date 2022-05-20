@@ -17,26 +17,40 @@ const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology:
 
 
 //jwt token function
-const verifyJWT = (req, res, next) => {
-    const authHeaders = req.headers.authorization;
-    if (!authHeaders) {
+function verifyJWT(req, res, next) {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+        return res.status(401).send({ message: 'UnAuthorized access' });
+    }
+    const token = authHeader.split(' ')[1];
+    jwt.verify(token, process.env.SECRET_TOKEN, function (err, decoded) {
+        if (err) {
+            return res.status(403).send({ message: 'Forbidden access' })
+        }
+        req.decoded = decoded;
+        next();
+    });
+}
+/* const verifyJWT = (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
         return res.status(401).send({ message: 'unauthorized access' })
     }
     else {
-        const token = authHeaders.split(' ')[1]
+        const token = authHeader.split(' ')[1]
         jwt.verify(token, process.env.SECRET_TOKEN, (err, decoded) => {
             if (err) {
                 return res.status(403).send({ message: 'access forbidden' })
             }
-            else {
-                req.decoded = decoded;
-                console.log("last line of the fucntion", req.decoded);
-                next()
-            }
+
+            req.decoded = decoded;
+            console.log("last line of the fucntion", req.decoded);
+            next()
+
         })
     }
 }
-
+ */
 
 async function run() {
     try {
@@ -121,12 +135,29 @@ async function run() {
         })
 
         //make admin put api
+        /*  app.put('/users/admin/:email', verifyJWT, async (req, res) => {
+             const requester = req.decoded.email;
+             console.log("hello", requester);
+             const email = req.params.email;
+             console.log(email);
+             const requesterAccount = await userCollection.findOne({ email: email });
+             if (requesterAccount.role === 'admin') {
+                 const filter = { email: email };
+                 const updateDoc = {
+                     $set: { role: 'admin' },
+                 };
+                 const result = await userCollection.updateOne(filter, updateDoc);
+                 res.send(result);
+             }
+             else {
+                 res.status(403).send({ message: 'forbidden' });
+             }
+ 
+         }) */
         app.put('/users/admin/:email', verifyJWT, async (req, res) => {
             console.log("hello");
             const email = req.params.email;
             console.log(email);
-            const requester = req.decoded.email;
-            console.log(requester);
             const query = { email: email }
             const updatedDoc = {
                 $set: { role: 'admin' }
