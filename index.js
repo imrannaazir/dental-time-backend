@@ -1,3 +1,5 @@
+//import
+const { MongoClient, ServerApiVersion } = require('mongodb');
 const express = require('express');
 const app = express();
 const port = process.env.PORT || 5000;
@@ -9,23 +11,37 @@ const jwt = require('jsonwebtoken');
 app.use(cors());
 app.use(express.json());
 
-
-const { MongoClient, ServerApiVersion } = require('mongodb');
+//connect with db
 const uri = `mongodb+srv://${process.env.USER_NAME}:${process.env.USER_PASSWORD}@cluster0.njnzf.mongodb.net/myFirstDatabase?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
 
 
 //jwt token function
-/* const verifyJWT = (req, res, next) => {
-
-
-
-} */
+const verifyJWT = (req, res, next) => {
+    const authHeaders = req.headers.authorization;
+    if (!authHeaders) {
+        return res.status(401).send({ message: 'unauthorized access' })
+    }
+    else {
+        const token = authHeaders.split(' ')[1]
+        jwt.verify(token, process.env.SECRET_TOKEN, (err, decoded) => {
+            if (err) {
+                return res.status(403).send({ message: 'access forbidden' })
+            }
+            else {
+                req.decoded = decoded;
+                console.log("last line of the fucntion", req.decoded);
+                next()
+            }
+        })
+    }
+}
 
 
 async function run() {
     try {
         await client.connect();
+        // create collection
         const serviceCollection = client.db("dental").collection("services")
         const bookingCollection = client.db("dental").collection("booking")
         const userCollection = client.db("dental").collection("users")
@@ -38,16 +54,29 @@ async function run() {
             const services = await cursor.toArray();
             res.send(services);
         });
-        //get my booking
-        app.get('/booking', async (req, res) => {
-            const patientEmail = req.query.email;
-            const query = { patientEmail: patientEmail }
-            const cursor = bookingCollection.find(query)
-            const myBooking = await cursor.toArray();
-            res.send(myBooking)
+
+        //get user api 
+        app.get('/users', verifyJWT, async (req, res) => {
+            const result = await userCollection.find({}).toArray()
+            res.send(result)
         })
 
+        //get my booking
+        app.get('/booking', verifyJWT, async (req, res) => {
+            const decodedEmail = req.decoded.email;
+            const patientEmail = req.query.email;
+            if (patientEmail === decodedEmail) {
+                const query = { patientEmail: patientEmail }
+                const cursor = bookingCollection.find(query)
+                const myBooking = await cursor.toArray();
+                res.send(myBooking)
+            }
+            else {
+                res.status(403).send({ message: 'access forbidden' })
+            }
+        })
 
+        //get available api
         app.get('/available', async (req, res) => {
             const date = req.query.date;
             const query = { date: date };
@@ -91,27 +120,37 @@ async function run() {
             res.send({ result, token });
         })
 
+        //make admin put api
+        app.put('/users/admin/:email', verifyJWT, async (req, res) => {
+            console.log("hello");
+            const email = req.params.email;
+            console.log(email);
+            const requester = req.decoded.email;
+            console.log(requester);
+            const query = { email: email }
+            const updatedDoc = {
+                $set: { role: 'admin' }
+            }
+            const result = await userCollection.updateOne(query, updatedDoc)
+            res.send(result)
+
+        })
     }
+
     finally {
 
     }
 }
 
-/* 
-client.connect(err => {
-    const collection = client.db("test").collection("devices");
-    // perform actions on the collection object
-    client.close();
-  }); */
+//call the run function
+run().catch(console.dir)
 
-
-
+//root api
 app.get('/', (req, res) => {
     res.send('Hello from the back end')
 });
 
+//listening port
 app.listen(port, () => {
-    console.log('This is ok!');
+    console.log('This is ok👍👍👍!');
 });
-
-run().catch(console.dir)
