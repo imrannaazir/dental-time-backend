@@ -64,7 +64,7 @@ async function run() {
         //get all services api
         app.get('/services', async (req, res) => {
             const query = {};
-            const cursor = serviceCollection.find(query);
+            const cursor = serviceCollection.find(query).project({ name: 1 });
             const services = await cursor.toArray();
             res.send(services);
         });
@@ -73,6 +73,13 @@ async function run() {
         app.get('/users', verifyJWT, async (req, res) => {
             const result = await userCollection.find({}).toArray()
             res.send(result)
+        })
+        app.get('/admin/:email', async (req, res) => {
+            const email = req.params.email;
+            const query = { email: email }
+            const user = await userCollection.findOne(query);
+            const isAdmin = user?.role === 'admin'
+            res.send({ isAdmin })
         })
 
         //get my booking
